@@ -1,6 +1,10 @@
 # Gen Warp (Docker Image)
 
-Genera un `wg0.conf` listo para usar con Gluetun, usando Cloudflare WARP y `wgcf`, sin instalar nada en tu máquina. La imagen incluye el script `gen-warp.sh`, `wgcf`, y todas las utilidades necesarias.
+[![Docker Pulls](https://img.shields.io/docker/pulls/2025dev/gen-warp.svg)](https://hub.docker.com/r/2025dev/gen-warp)
+[![Docker Image Size](https://img.shields.io/docker/image-size/2025dev/gen-warp/latest.svg)](https://hub.docker.com/r/2025dev/gen-warp)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/2025dev/gen-warp/docker-image.yml?branch=main)
+
+Genera un `wg0.conf` listo para usar con Gluetun usando Cloudflare WARP y `wgcf`, sin instalar nada en tu máquina. La imagen incluye el script `gen-warp.sh`, `wgcf` y todas las utilidades necesarias.
 
 ---
 
@@ -8,51 +12,29 @@ Genera un `wg0.conf` listo para usar con Gluetun, usando Cloudflare WARP y `wgcf
 
 - Registra automáticamente una cuenta WARP (`wgcf-account.toml`)
 - Genera un `wg0.conf` limpio y funcional
-- Elimina toda la configuración IPv6
-- Corrige `Address`, `DNS` y `AllowedIPs`
+- Elimina IPv6 de Address, DNS y AllowedIPs
 - Resuelve el hostname del Endpoint y lo sustituye por la IP real
-- Deja el perfil 100% compatible con Gluetun
+- Genera un perfil **100% compatible con Gluetun**
 
 Todo en un solo comando.
 
 ---
 
-## 📦 Construir la imagen
+## 🐳 Usar la imagen desde Docker Hub (recomendado)
+
+No necesitas clonar el repo ni instalar nada. Ejecuta:
 
 ```bash
-docker build -t gen-warp .
+docker pull 2025dev/gen-warp:latest
 ```
 
----
-
-## ▶️ Generar el perfil WARP
-
-Crea un directorio llamado `vpn` (o el que quieras) y ejecuta:
+Genera tu perfil WARP:
 
 ```bash
-docker run --rm -v "${PWD}/vpn:/app" -w /app gen-warp
+docker run --rm -v "${PWD}/vpn:/app" -w /app 2025dev/gen-warp:latest
 ```
 
-El comando generará en ese directorio:
-
-- `wg0.conf` → usable directamente por Gluetun
-- `wgcf-account.toml` → cuenta WARP necesaria para regenerar el perfil
-
----
-
-## 🔄 Regenerar usando la misma cuenta WARP
-
-Conserva `wgcf-account.toml` y vuelve a ejecutar el contenedor:
-
-```bash
-docker run --rm -v "${PWD}/vpn:/app" -w /app gen-warp
-```
-
-Si el archivo está presente, `wgcf` reutilizará la misma cuenta.
-
----
-
-## 📂 Estructura resultante
+Esto producirá:
 
 ```
 vpn/
@@ -62,26 +44,68 @@ vpn/
 
 ---
 
-## 🧹 Uso totalmente stateless (cuenta nueva cada vez)
+## 🔄 Regenerar usando la misma cuenta
+
+Si conservas `wgcf-account.toml`, simplemente ejecuta de nuevo:
+
+```bash
+docker run --rm -v "${PWD}/vpn:/app" -w /app 2025dev/gen-warp:latest
+```
+
+---
+
+## 🧹 Nuevo perfil cada vez (stateless)
+
+Si deseas crear una cuenta WARP nueva cada vez:
 
 ```bash
 rm -f vpn/wgcf-account.toml
+docker run --rm -v "${PWD}/vpn:/app" -w /app 2025dev/gen-warp:latest
+```
+
+---
+
+## 🔧 Construir la imagen localmente
+
+```bash
+docker build -t gen-warp .
+```
+
+Y ejecutarla:
+
+```bash
 docker run --rm -v "${PWD}/vpn:/app" -w /app gen-warp
+```
+
+---
+
+## 📘 ¿Qué hace internamente el script?
+
+El script `gen-warp.sh`:
+
+1. Registra una cuenta WARP
+2. Genera el perfil `wgcf-profile.conf`
+3. Lo renombra a `wg0.conf`
+4. Elimina todo el contenido IPv6 con `awk`
+5. Limpia Address, DNS y AllowedIPs
+6. Resuelve el Endpoint con `nslookup` y reemplaza el hostname por la IP
+7. Deja el archivo final listo para usar en Gluetun
+
+---
+
+## 📂 Estructura resultante
+
+```
+vpn/
+ ├── wg0.conf            # Perfil final
+ └── wgcf-account.toml   # Cuenta WARP
 ```
 
 ---
 
 ## 🛠️ Notas técnicas
 
-- Basada en `debian:bookworm-slim`
-- Incluye: `wgcf`, bash, ca-certificates, dnsutils (nslookup), awk
+- Basado en `debian:bookworm-slim`
+- Incluye: `wgcf`, `bash`, `ca-certificates`, `dnsutils` (nslookup) y `awk`
 - ENTRYPOINT: `gen-warp.sh`
-- IPv6 eliminada para máxima compatibilidad
-- DNS consolidado en una sola línea
-- Endpoint reemplazado por su IP real
-
----
-
-## 📜 Licencia
-
-The Unlicense
+- Compatible con cualquier plataforma que soporte Docker
